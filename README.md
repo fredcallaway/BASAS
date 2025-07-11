@@ -5,11 +5,13 @@ This is starter code for simulating the model from [this paper](https://direct.m
 
 ## Installation
 
-Install ([juliaup](https://github.com/JuliaLang/juliaup)).
+Install [juliaup](https://github.com/JuliaLang/juliaup). If you're on Max/Linux, you can run this command:
+
+    curl -fsSL https://install.julialang.org | sh
 
 Install packages:
 
-    julia +1.9 --project=. -e "using Pkg; Pkg.instantiate(); Pkg.precompile()"
+    julia --project=. -e "using Pkg; Pkg.instantiate(); Pkg.precompile()"
 
 
 ## Usage
