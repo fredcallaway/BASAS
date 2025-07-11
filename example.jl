@@ -68,6 +68,8 @@ function simulation_frame(model::BDDM, trials::Vector{SimTrial})::DataFrame
     end |> DataFrame
 end
 
+# %% --------
+
 data = read_csv("data/study1.csv")
 trials = prepare_data(data)
 model = create_model(trials)
