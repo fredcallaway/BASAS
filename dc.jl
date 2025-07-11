@@ -13,10 +13,9 @@ advance.
 struct DirectedCognition <: Policy
     m::BDDM
     λ_avg::Vector{Float64}
-    noise::Logistic
+    noise::Logistic{Float64}
 end
 
-# DirectedCognition(m::BDDM) = DirectedCognition(m, zeros(m.N), DiracDelta(0.))
 DirectedCognition(m::BDDM, β=1e10) = DirectedCognition(m, zeros(m.N), Logistic(0., 1/β))
 
 function initialize!(pol::DirectedCognition, t)
@@ -27,7 +26,6 @@ function stop(pol::DirectedCognition, s::State, t::Trial)
     s.steps_left == 0 && return true
     !voc_is_positive(pol, s, t, rand(pol.noise))
 end
-# stop(pol::DirectedCognition, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
 
 "Directed Cognition approximation to the value of computation."
 function voc_dc(m, s, t)
@@ -56,7 +54,7 @@ function voc_is_positive(pol::Policy, s, t, offset)
     
     # Slower short circuit, works with stable Optim.jl
     res = optimize(1, max_samples, abs_tol=1, callback = x-> x.value < offset) do n
-        -voc_n(m, s, n, λ_avg)
+        -voc_n(m, s, n, λ_avg, t.dt)
     end
     return res.minimum < offset
 end
@@ -94,18 +92,6 @@ function expected_term_reward(µ1, µ2, σ1, σ2, λ_future1, λ_future2, risk_a
     v1 * p1 + v2 * p2 + θ * normpdf(α)
 end
 
-# function expected_term_reward(µ, λ, risk_aversion, λ_future)
-#     σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
-#     # expected subjective values in future belief state
-#     v1 = µ[1] - risk_aversion * λ_future[1] ^ -0.5; v2 = µ[2] - risk_aversion * λ_future[2] ^ -0.5
-#     # standard deviation of difference beteween future values
-#     θ = √(σ1^2 + σ2^2)
-#     α = (v1 - v2) / θ  # difference scaled by std
-#     p1 = normcdf(α)  # p(V1 > V2)
-#     p2 = 1 - p1
-#     v1 * p1 + v2 * p2 + θ * normpdf(α)
-# end
-
 "Value of information from n more samples (assuming equal attention)."
 function voi_n(m::BDDM, s::State, n::Real, λ_avg::Vector)
     σ1 = std_of_posterior_mean(s.λ[1], n * λ_avg[1])
@@ -120,36 +106,3 @@ end
 "Value of computation from n more samples."
 voc_n(m::BDDM, s::State, n::Real, λ_avg::Vector, dt::Float64) = voi_n(m, s, n, λ_avg) - dt * m.cost * n
 
-
-struct MetaGreedy <: Policy
-    m::BDDM
-    λ_avg::Vector{Float64}
-    n::Int
-end
-MetaGreedy(m, n=1) = MetaGreedy(m, zeros(m.N), n)
-
-function initialize!(pol::MetaGreedy, t)
-    pol.λ_avg .= average_precision(pol.m, t)
-end
-
-function stop(pol::MetaGreedy, s::State, t::Trial)
-    voc_n(pol.m, s, pol.n, pol.λ_avg, t.dt) <= 0
-end
-
-# NOT CORRECT
-# "Value of perfect information about all items."
-# function vpi(s)
-#     expected_max_norm(s.µ, s.λ) - maximum(s.µ)
-# end
-
-# struct Policy
-#     β_risk::Float64
-#     β_vpi::Float64
-#     intercept::Float64
-# end
-
-# function stop(pol::Policy, s::State)
-#     choice = argmax(s.µ)
-#     risk = s.λ[choice] ^ -0.5
-#     pol.β_risk * risk + pol.β_vpi * vpi(s) + pol.intercept < 0
-# end

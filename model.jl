@@ -157,9 +157,10 @@ function subjective_precision(m, t)
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=max_rt(t),
+function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_rt=60.,
                   save_states=false, save_presentation=false)
 
+    max_step = ceil(Int, max_rt / t.dt)
     s.steps_left = max_step
     initialize!(pol, t)
     switch = make_switches(t)
@@ -194,9 +195,20 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     end
     if save_presentation
         presentation_durations[end] -= time_to_switch  # remaining fixation time
+        presentation_durations *= t.dt
     end
-    value, choice = findmax(subjective_values(m, s))
-    reward = value - time_step * t.dt * m.cost
+    subj_value, choice = findmax(subjective_values(m, s))
+    rt = time_step * t.dt
     push!(states, s)
-    (;choice, time_step, reward, states, presentation_durations, timeout)
+    (;choice, rt, states, presentation_durations, subj_value, timeout)
+end
+
+# ---------- Misc ---------- #
+
+function empirical_prior(trials::Vector{<:Trial}; bias=1)
+    all_vals = mapreduce(t->t.value, vcat, trials)
+    (;
+        µ = mean(all_vals) * bias,
+        σ = std(all_vals)
+    )
 end
